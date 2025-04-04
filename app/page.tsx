@@ -8,8 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Calendar } from "./components/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
-import { useSearchParams } from "next/navigation"
 import { StatusSelectionModal } from "./components/status-selection-modal"
+import { UrlParamsHandler } from "./components/url-params-handler"
 
 // Google Apps Script URL
 const GAS_URL =
@@ -38,29 +38,22 @@ export default function GolfClubTracker() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const { toast } = useToast()
   const isMobile = useMobile()
-  const searchParams = useSearchParams()
 
-  // 初期化時に当月をセットし、URLパラメータをチェック
-  useEffect(() => {
-    // URLパラメータから部員名と対象月を取得
-    const nameParam = searchParams?.get("部員名")
-    const monthParam = searchParams?.get("対象月")
-    
+  // URLパラメータの変更を処理するハンドラー
+  const handleParamsChange = ({ name, month }: { name?: string; month?: string }) => {
     // 部員名がURLに指定されていれば設定
-    if (nameParam) {
-      setMemberName(nameParam)
-      console.log("部員名:", nameParam)
+    if (name) {
+      setMemberName(name)
     }
     
     // 対象月がURLに指定されていれば設定、なければ当月を設定
-    if (monthParam) {
-      setTargetMonth(monthParam)
-      console.log("対象月:", monthParam)
-    } else {
+    if (month) {
+      setTargetMonth(month)
+    } else if (!targetMonth) { // 初期化時のみ当月をセット
       const thisMonth = new Date().toISOString().slice(0, 7)
       setTargetMonth(thisMonth)
     }
-  }, [searchParams])
+  }
 
   // 部員名と対象月が設定されたら自動的にカレンダーを生成
   useEffect(() => {
@@ -337,6 +330,9 @@ export default function GolfClubTracker() {
 
   return (
     <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      {/* URLパラメータハンドラー */}
+      <UrlParamsHandler onParamsChange={handleParamsChange} />
+      
       <Card className="max-w-4xl mx-auto shadow-lg">
         <CardHeader className="text-center border-b">
           <CardTitle className="text-2xl sm:text-3xl font-bold text-green-700">ゴルフ部練習記録管理</CardTitle>
