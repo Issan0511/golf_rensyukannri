@@ -13,7 +13,7 @@ import { UrlParamsHandler } from "../components/url-params-handler"
 
 // Google Apps Script URL
 const GAS_URL =
-  "https://script.google.com/macros/s/AKfycbyJxavQ4xaLmGDurl_pNMJXswAFXj_PcxlDj7V2zw2cAg8h_7N4MiKhuTcLtamncd-x/exec"
+  "https://script.google.com/macros/s/AKfycbx6xcpFUclSDZCo6bNbdpw_2l8lZRZ4t7d0PbnbXqZkhfhXjKf0TvQ9A8P3ShBjJwqc/exec"
 
 // ステータスリスト
 const statusList = ["", "練習", "ラウンド", "キャディ"] // 0: なし, 1: 練習, ...
