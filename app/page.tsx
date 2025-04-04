@@ -49,11 +49,13 @@ export default function GolfClubTracker() {
     // 部員名がURLに指定されていれば設定
     if (nameParam) {
       setMemberName(nameParam)
+      console.log("部員名:", nameParam)
     }
     
     // 対象月がURLに指定されていれば設定、なければ当月を設定
     if (monthParam) {
       setTargetMonth(monthParam)
+      console.log("対象月:", monthParam)
     } else {
       const thisMonth = new Date().toISOString().slice(0, 7)
       setTargetMonth(thisMonth)
