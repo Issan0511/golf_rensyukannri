@@ -16,7 +16,7 @@ const GAS_URL =
   "https://script.google.com/macros/s/AKfycbyJxavQ4xaLmGDurl_pNMJXswAFXj_PcxlDj7V2zw2cAg8h_7N4MiKhuTcLtamncd-x/exec"
 
 // ステータスリスト
-const statusList = ["", "練習", "ラウンド", "キャディー"] // 0: なし, 1: 練習, ...
+const statusList = ["", "練習", "ラウンド", "キャディ"] // 0: なし, 1: 練習, ...
 
 // 参加回数の型定義
 type ParticipationCounts = {
@@ -274,6 +274,8 @@ export default function GolfClubTracker() {
         month: targetMonth,
         name: memberName,
         dailyStatuses: JSON.stringify(calendarData),
+        statusCounts: JSON.stringify(participationCount.byStatus), // ステータス別回数を追加
+        totalCount: participationCount.total, // 合計回数も追加
         action: "save",
       }
 

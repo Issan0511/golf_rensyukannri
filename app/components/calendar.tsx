@@ -81,7 +81,10 @@ export function Calendar({
   }
 
   // タッチ終了
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    // タッチイベントの後のクリックイベント発火を防止
+    e.preventDefault()
+    
     if (longPressTimer) {
       clearTimeout(longPressTimer)
       setLongPressTimer(null)
@@ -98,6 +101,13 @@ export function Calendar({
   const handleContextMenu = (e: React.MouseEvent, day: number) => {
     e.preventDefault()
     onDayRightClick(day)
+  }
+  
+  // クリックハンドラ - モバイルではタッチイベントのみを使用
+  const handleClick = (day: number) => {
+    if (!isMobile) {
+      toggleStatus(day)
+    }
   }
 
   // ステータスに応じてスタイルを返す
@@ -116,7 +126,7 @@ export function Calendar({
         return "bg-green-100 text-green-800"
       case "ラウンド":
         return "bg-yellow-100 text-yellow-800"
-      case "キャディー":
+      case "キャディ":
         return "bg-blue-100 text-blue-800"
       default:
         return "bg-white"
@@ -147,7 +157,7 @@ export function Calendar({
           let dotColor = "bg-gray-400"
           if (status === "練習") dotColor = "bg-green-500"
           if (status === "ラウンド") dotColor = "bg-yellow-500"
-          if (status === "キャディー") dotColor = "bg-blue-500"
+          if (status === "キャディ") dotColor = "bg-blue-500"
           
           return (
             <div 
@@ -198,10 +208,10 @@ export function Calendar({
           return (
             <div
               key={`day-${day}`}
-              onClick={() => toggleStatus(day)}
+              onClick={() => handleClick(day)}
               onContextMenu={(e) => handleContextMenu(e, day)}
               onTouchStart={() => handleTouchStart(day)}
-              onTouchEnd={handleTouchEnd}
+              onTouchEnd={(e) => handleTouchEnd(e)}
               onTouchMove={() => {
                 if (longPressTimer) {
                   clearTimeout(longPressTimer)
