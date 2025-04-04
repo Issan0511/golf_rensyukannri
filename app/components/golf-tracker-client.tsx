@@ -55,13 +55,7 @@ export function GolfTrackerClient() {
     }
   }
 
-  // 部員名と対象月が設定されたら自動的にカレンダーを生成
-  useEffect(() => {
-    // 両方の値があり、対象月のフォーマットが正しい場合にのみ実行
-    if (memberName.trim() && targetMonth && /^\d{4}-\d{2}$/.test(targetMonth)) {
-      generateCalendar();
-    }
-  }, [memberName, targetMonth]); // memberNameとtargetMonthが変更されたときに実行
+
 
   // 参加回数を計算
   const calculateParticipation = (data: Record<string, string[]>) => {
