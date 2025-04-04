@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label"
 import { Calendar } from "./components/calendar"
 import { useToast } from "@/hooks/use-toast"
 import { useMobile } from "@/hooks/use-mobile"
+import { useSearchParams } from "next/navigation"
+import { StatusSelectionModal } from "./components/status-selection-modal"
 
 // Google Apps Script URL
 const GAS_URL =
@@ -16,29 +18,85 @@ const GAS_URL =
 // ステータスリスト
 const statusList = ["", "練習", "ラウンド", "キャディー"] // 0: なし, 1: 練習, ...
 
+// 参加回数の型定義
+type ParticipationCounts = {
+  total: number;
+  byStatus: Record<string, number>;
+}
+
 export default function GolfClubTracker() {
   const [memberName, setMemberName] = useState("")
   const [targetMonth, setTargetMonth] = useState("")
-  const [calendarData, setCalendarData] = useState<Record<string, string>>({})
-  const [participationCount, setParticipationCount] = useState(0)
+  const [calendarData, setCalendarData] = useState<Record<string, string[]>>({})
+  const [participationCount, setParticipationCount] = useState<ParticipationCounts>({
+    total: 0,
+    byStatus: {}
+  })
   const [isLoading, setIsLoading] = useState(false)
   const [isCalendarGenerated, setIsCalendarGenerated] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const { toast } = useToast()
   const isMobile = useMobile()
+  const searchParams = useSearchParams()
 
-  // 初期化時に当月をセット
+  // 初期化時に当月をセットし、URLパラメータをチェック
   useEffect(() => {
-    const thisMonth = new Date().toISOString().slice(0, 7)
-    setTargetMonth(thisMonth)
-  }, [])
+    // URLパラメータから部員名と対象月を取得
+    const nameParam = searchParams?.get("部員名")
+    const monthParam = searchParams?.get("対象月")
+    
+    // 部員名がURLに指定されていれば設定
+    if (nameParam) {
+      setMemberName(nameParam)
+    }
+    
+    // 対象月がURLに指定されていれば設定、なければ当月を設定
+    if (monthParam) {
+      setTargetMonth(monthParam)
+    } else {
+      const thisMonth = new Date().toISOString().slice(0, 7)
+      setTargetMonth(thisMonth)
+    }
+  }, [searchParams])
+
+  // 部員名と対象月が設定されたら自動的にカレンダーを生成
+  useEffect(() => {
+    // 両方の値があり、対象月のフォーマットが正しい場合にのみ実行
+    if (memberName.trim() && targetMonth && /^\d{4}-\d{2}$/.test(targetMonth)) {
+      generateCalendar();
+    }
+  }, [memberName, targetMonth]); // memberNameとtargetMonthが変更されたときに実行
 
   // 参加回数を計算
-  const calculateParticipation = (data: Record<string, string>) => {
-    let count = 0
-    Object.values(data).forEach((status) => {
-      if (status) count++
+  const calculateParticipation = (data: Record<string, string[]>) => {
+    // ステータス別のカウント初期化
+    const counts: Record<string, number> = {}
+    statusList.filter(s => s !== "").forEach(status => {
+      counts[status] = 0
     })
-    setParticipationCount(count)
+    
+    // 全ての日のステータスをカウント
+    let totalDays = 0
+    Object.values(data).forEach((statuses) => {
+      if (statuses && statuses.length > 0) {
+        totalDays++
+        // 各ステータスの出現回数を集計
+        statuses.forEach(status => {
+          if (status && counts[status] !== undefined) {
+            counts[status]++
+          }
+        })
+      }
+    })
+    
+    // 全ステータスの合計回数
+    const totalCount = Object.values(counts).reduce((sum, count) => sum + count, 0)
+    
+    setParticipationCount({
+      total: totalCount,
+      byStatus: counts
+    })
   }
 
   // カレンダー生成
@@ -109,9 +167,20 @@ export default function GolfClubTracker() {
             const dailyStatuses =
               typeof data.dailyStatuses === "string" ? JSON.parse(data.dailyStatuses) : data.dailyStatuses
 
-            // カレンダーに反映
-            setCalendarData(dailyStatuses)
-            calculateParticipation(dailyStatuses)
+            // カレンダーに反映（古いフォーマットの互換性処理）
+            const convertedData: Record<string, string[]> = {}
+            
+            // 既存データの変換（string -> string[]）
+            Object.entries(dailyStatuses).forEach(([day, status]) => {
+              if (typeof status === 'string') {
+                convertedData[day] = status ? [status] : []
+              } else {
+                convertedData[day] = status as string[]
+              }
+            })
+            
+            setCalendarData(convertedData)
+            calculateParticipation(convertedData)
             toast({
               title: "成功",
               description: "既存データを読み込みました。",
@@ -128,7 +197,10 @@ export default function GolfClubTracker() {
         } else {
           // 既存データなし
           setCalendarData({})
-          setParticipationCount(0)
+          setParticipationCount({
+            total: 0,
+            byStatus: {}
+          })
           toast({
             title: "情報",
             description: "データがありません。新規作成します。",
@@ -231,13 +303,32 @@ export default function GolfClubTracker() {
     }
   }
 
-  // 日付のステータス更新
+  // 日付のステータス更新（単一選択用 - バックワードコンパティビリティのため残す）
   const updateDayStatus = (day: number, newStatus: string) => {
     setCalendarData((prev) => {
-      const newData = { ...prev, [day]: newStatus }
+      // 既存のステータスを配列として取得または新規作成
+      const prevStatuses = prev[day] || []
+      // 選択されたステータスだけを含む新しい配列
+      const newData = { ...prev, [day]: newStatus ? [newStatus] : [] }
       calculateParticipation(newData)
       return newData
     })
+  }
+
+  // モーダルを開く
+  const openStatusModal = (day: number) => {
+    setSelectedDay(day)
+    setModalOpen(true)
+  }
+
+  // 複数ステータス選択時の更新
+  const updateMultipleStatuses = (day: number, selectedStatuses: string[]) => {
+    setCalendarData((prev) => {
+      const newData = { ...prev, [day]: selectedStatuses }
+      calculateParticipation(newData)
+      return newData
+    })
+    setModalOpen(false)
   }
 
   return (
@@ -291,11 +382,23 @@ export default function GolfClubTracker() {
                   calendarData={calendarData}
                   statusList={statusList}
                   updateDayStatus={updateDayStatus}
+                  onDayLongPress={openStatusModal}
+                  onDayRightClick={openStatusModal}
+                  onMultipleEventsClick={openStatusModal} // 複数イベントがある日のクリック時もモーダルを表示
                 />
 
                 {memberName && (
-                  <div className="mt-4 text-center font-bold text-lg text-green-700">
-                    {memberName} さんの参加回数: {participationCount} 回
+                  <div className="mt-4 text-center">
+                    <p className="font-bold text-lg text-green-700">
+                      {memberName} さんの参加回数: {participationCount.total} 回
+                    </p>
+                    <div className="mt-2 text-sm text-gray-600 flex flex-wrap justify-center gap-3">
+                      {Object.entries(participationCount.byStatus).map(([status, count]) => (
+                        <span key={status} className="inline-flex items-center px-2.5 py-0.5 rounded-full bg-green-100 text-green-800">
+                          {status}: {count}回
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </>
@@ -303,6 +406,17 @@ export default function GolfClubTracker() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ステータス選択モーダル */}
+      {modalOpen && selectedDay !== null && (
+        <StatusSelectionModal
+          day={selectedDay}
+          selectedStatuses={calendarData[selectedDay] || []}
+          statusList={statusList.filter(s => s !== "")} // 空文字を除外
+          onClose={() => setModalOpen(false)}
+          onSave={(selectedStatuses) => updateMultipleStatuses(selectedDay, selectedStatuses)}
+        />
+      )}
     </div>
   )
 }
